@@ -76,10 +76,10 @@ int main() {
   glEnable(GL_DEPTH_TEST);
 
   // Shader Setup
-  ourShader = Shader::FromPath("shader.vert", "shader.frag");
+  ourShader = Shader::FromPath("shaders/shader.vert", "shaders/shader.frag");
   ourShader.use();
-  Shader skyBoxShader = Shader::FromPath("skybox.vert", "skybox.frag");
-  debugShader = Shader::FromPath("debug.vert", "debug.frag");
+  Shader skyBoxShader = Shader::FromPath("shaders/skybox.vert", "shaders/skybox.frag");
+  debugShader = Shader::FromPath("shaders/debug.vert", "shaders/debug.frag");
 
   camera = Camera::Default();
   camera.position = glm::vec3(0.0, 3.0, 3.0f);
