@@ -44,6 +44,7 @@ struct Material {
 
   static Material Default();
   static Material DebugLight();
+  static Material Hand();
 };
 
 class Shader

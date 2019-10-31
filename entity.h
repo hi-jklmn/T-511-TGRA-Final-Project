@@ -12,9 +12,9 @@ private:
 	glm::vec3 position, rotation, scale;
 	glm::mat4 model_matrix;
 
-	Model* model;
 
 public:
+	Model* model;
 	Sphere bounding_sphere;
 	bool is_selected;
 
@@ -23,7 +23,7 @@ public:
 		e.is_selected = false;
 		e.model = model;
 		e.setPRS(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(1.0f));
-    // TODO: Make bounding sphere depend on mesh vertices?
+      //e.model_transform = glm::mat4(1.0f);
 		e.bounding_sphere.radius = 1.0f;
 		e.bounding_sphere.center = glm::vec3(0.0f);
 		return e;
@@ -31,7 +31,7 @@ public:
 
 	void draw(Shader shader) {
     shader.use();
-		shader.setMat4("uModelMatrix", model_matrix);
+		shader.setMat4("uModelMatrix", model_matrix * model->transform);
 		shader.setBool("uSelected", is_selected);
 		model->draw(shader);
 		shader.setBool("uSelected", false);
@@ -62,6 +62,12 @@ public:
 
   glm::vec3 getPosition() {
     return position;
+  }
+
+  void translate(glm::vec3 delta) {
+    position += delta;
+    bounding_sphere.center = position;
+    recalculate_matrix();
   }
 
 	void setPosition(glm::vec3 pos) {

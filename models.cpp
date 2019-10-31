@@ -20,24 +20,24 @@ void Mesh::setupMesh() {
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int),
 				 &indices[0], GL_STATIC_DRAW);
 
-		// vertex positions
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-		// vertex normals
+
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
-    // vertex tangents
+
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
-    // vertex bitangents
+
     glEnableVertexAttribArray(3);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Bitangent));
-		// vertex texture coords
+
 		glEnableVertexAttribArray(4);
 		glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
 
 		glBindVertexArray(0);
 }
+
 Mesh::Mesh(
 	vector<Vertex> vertices,
 	vector<unsigned int> indices,
@@ -59,7 +59,6 @@ void Mesh::draw(Shader shader) {
   unsigned int specularNr = 1;
   unsigned int normalNr   = 1;
 
-	shader.setBool("uTextured", textures.size() > 0);
   shader.setMaterial("uMaterial", material);
 
   for(unsigned int i = 0; i < textures.size(); i++) {
@@ -84,6 +83,11 @@ void Mesh::draw(Shader shader) {
       // TODO: Fix whatever the fuck this is
       glBindTexture(GL_TEXTURE_2D, textures[i].id);
   }
+
+	shader.setBool("uTextured", diffuseNr > 1);
+	shader.setBool("uSpecmapped", specularNr > 1);
+	shader.setBool("uNormaled", normalNr > 1);
+
   glActiveTexture(GL_TEXTURE0);
 
 	glBindVertexArray(VAO);
@@ -111,27 +115,33 @@ Mesh Mesh::Cube() {
         -1.000000, -1.000000, 1.000000
     };
 
+    //float tex_coords[40] = {
+    //    0.625000, 0.000000,
+    //    0.375000, 0.250000,
+    //    0.375000, 0.000000,
+    //    0.625000, 0.250000,
+    //    0.375000, 0.500000,
+    //    0.375000, 0.250000,
+    //    0.625000, 0.500000,
+    //    0.375000, 0.750000,
+    //    0.625000, 0.750000,
+    //    0.375000, 1.000000,
+    //    0.375000, 0.500000,
+    //    0.125000, 0.750000,
+    //    0.125000, 0.500000,
+    //    0.875000, 0.500000,
+    //    0.625000, 0.500000,
+    //    0.625000, 0.250000,
+    //    0.625000, 0.750000,
+    //    0.625000, 1.000000,
+    //    0.375000, 0.750000,
+    //    0.875000, 0.750000
+    //};
     float tex_coords[40] = {
-        0.625000, 0.000000,
-        0.375000, 0.250000,
-        0.375000, 0.000000,
-        0.625000, 0.250000,
-        0.375000, 0.500000,
-        0.375000, 0.250000,
-        0.625000, 0.500000,
-        0.375000, 0.750000,
-        0.625000, 0.750000,
-        0.375000, 1.000000,
-        0.375000, 0.500000,
-        0.125000, 0.750000,
-        0.125000, 0.500000,
-        0.875000, 0.500000,
-        0.625000, 0.500000,
-        0.625000, 0.250000,
-        0.625000, 0.750000,
-        0.625000, 1.000000,
-        0.375000, 0.750000,
-        0.875000, 0.750000
+                            1.000000, 1.000000,
+                            0.000000, 0.000000,
+                            1.000000, 0.000000,
+                            0.000000, 1.000000
     };
     float normals[18] = {
         0.0000, 1.0000, 0.0000,
@@ -144,17 +154,17 @@ Mesh Mesh::Cube() {
 
     float indices[108] = {
         5,1,1 , 3,2,1 , 1,3,1,
-        3,4,2 , 8,5,2 , 4,6,2,
-        7,7,3 , 6,8,3 , 8,5,3,
-        2,9,4 , 8,10,4, 6,8,4,
-        1,11,5, 4,12,5, 2,13,5,
-        5,14,6, 2,9,6 , 6,15,6,
-        5,1,1 , 7,16,1, 3,2,1,
-        3,4,2 , 7,7,2 , 8,5,2,
-        7,7,3 , 5,17,3, 6,8,3,
-        2,9,4 , 4,18,4, 8,10,4,
-        1,11,5, 3,19,5, 4,12,5,
-        5,14,6, 1,20,6, 2,9,6
+        3,1,2 , 8,2,2 , 4,3,2,
+        7,1,3 , 6,2,3 , 8,3,3,
+        2,1,4 , 8,2,4,  6,3,4,
+        1,1,5, 4,2,5, 2,3,5,
+        5,1,6, 2,2,6 , 6,3,6,
+        5,1,1 , 7,4,1, 3,2,1,
+        3,1,2 , 7,4,2 , 8,2,2,
+        7,1,3 , 5,4,3, 6,2,3,
+        2,1,4 , 4,4,4, 8,2,4,
+        1,1,5, 3,4,5, 4,2,5,
+        5,1,6, 1,4,6, 2,2,6
     };
 
     vector<Vertex> cube_vertices;
@@ -351,7 +361,6 @@ Mesh Mesh::Sphere(int divisions) {
 }
 
 void Model::processNode(aiNode *node, const aiScene *scene) {
-  fprintf(stderr, "%d\n", node->mNumMeshes);
   // process all the node's meshes (if any)
   for(unsigned int i = 0; i < node->mNumMeshes; i++) {
       aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
@@ -371,10 +380,17 @@ void Model::loadModel(string path) {
     return;
   }
 
-  fprintf(stderr, "%s\n", path.c_str());
   directory = path.substr(0, path.find_last_of('/'));
 
   processNode(scene->mRootNode, scene);
+
+  float max_len = 1.0f;
+  for (Mesh m : meshes) {
+    for (Vertex v : m.vertices) {
+      max_len = glm::max(max_len, glm::length(v.Position));
+    }
+  }
+  transform = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f/max_len));
 }
 
 vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName) {
@@ -407,7 +423,6 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
 
 Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
 
-  fprintf(stderr, "%d\n", mesh->mNumVertices);
   vector<unsigned int> indices;
   vector<Vertex>  vertices;
   vector<Texture> textures;
@@ -482,24 +497,28 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
 
 Model Model::FromPath(string path) {
 	Model m;
+  m.transform = glm::mat4(1.0f);
 	m.loadModel(path);
 	return m;
 }
 
 Model Model::FromMesh(Mesh mesh) {
 	Model m;
+  m.transform = glm::mat4(1.0f);
 	m.meshes.push_back(mesh);
 	return m;
 }
 
 Model Model::FromMeshes(vector<Mesh> meshes) {
 	Model m;
+  m.transform = glm::mat4(1.0f);
 	m.meshes = meshes;
 	return m;
 }
 
 void Model::draw(Shader shader)
 {
-  for(unsigned int i = 0; i < meshes.size(); i++)
-    meshes[i].draw(shader);
+  for(Mesh m: meshes) {
+    m.draw(shader);
+  }
 }

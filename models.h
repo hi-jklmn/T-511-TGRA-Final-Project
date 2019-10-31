@@ -69,7 +69,9 @@ private:
   Mesh processMesh(aiMesh *mesh, const aiScene *scene);
 
 public:
+
   vector<Mesh> meshes;
+  glm::mat4 transform;
 
   static Model FromPath(string path);
   static Model FromMesh(Mesh mesh);

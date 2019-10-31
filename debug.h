@@ -33,6 +33,12 @@ public:
       d.setup_models();
 			return d;
 	}
+  void draw_debug_sphere(Shader shader, glm::vec3 p) {
+    Entity e_sphere = Entity::FromModel(&light_debug);
+    e_sphere.setScale(glm::vec3(0.2f));
+    e_sphere.setPosition(p);
+    e_sphere.draw(shader);
+  }
 
   void draw_point_light(Shader shader, PointLight light) {
       Entity e_light = Entity::FromModel(&light_debug);

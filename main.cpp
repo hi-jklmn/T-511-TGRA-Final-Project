@@ -10,7 +10,10 @@
 #include "entity.h"
 #include "scene.h"
 #include "animation.h"
+#include "player.h"
+#include "maze.h"
 
+#include "input.h"
 #include "debug.h"
 
 #define MAJOR_VERSION 0
@@ -19,76 +22,89 @@
 #define WIDTH  1024
 #define HEIGHT 768
 
-#define DEBUG true
-
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 extern "C" void error_callback(int error, const char* description);
 void panic(const char* description);
 void processInput(GLFWwindow *window);
+void init(); // Keep all that unchanging initialization code nice and contained
 void mouse_button_callback(
 	GLFWwindow* window, int button, int action, int mods
 );
+void mouse_callback(
+  GLFWwindow* window, double xpos, double ypos
+);
+
+enum GameMode {
+    DEBUG,
+    PLAY
+};
 
 // Dirty, filthy global scope
+// Would not normally do this, but don't have time to come up with a less awful solution
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+GLFWwindow* window;
+
 Debug debug;
+
+GameMode currentMode;
 
 Shader ourShader;
 Shader debugShader;
-Camera camera;
+
+Camera debugCamera;
+
+Player player;
+
+// More chances of dereferencing null pointers.
+// Programming is fun!
+Camera* activeCamera;
 
 Scene  scene;
-Entity sphere_test;
-
-glm::mat4 projection;
-glm::mat4 view;
 
 int main() {
-  printf("Started OpenGL-Testing v%d.%d\n", MAJOR_VERSION, MINOR_VERSION);
 
-  if (!glfwInit()) panic("Could not initialize glfw\n");
+  init();
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+  debug = Debug::init();
 
-  GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "OpenGL-Testing", NULL, NULL);
-  if(!window) panic("Could not create window\n");
-
-  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-  // Just so that glfw knows how to give us them sweet, sweet errors
-  glfwSetErrorCallback(error_callback);
-	glfwSetMouseButtonCallback(window, mouse_button_callback);
-
-  glfwMakeContextCurrent(window);
-
-  printf("Running OpenGL Version %s\n", glGetString(GL_VERSION));
-  printf("Running GLSL Version %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-  // Thanks I hate it
-  glewInit();
-
-	debug = Debug::init();
-
-  glEnable(GL_DEPTH_TEST);
+  currentMode = GameMode::PLAY;
 
   // Shader Setup
   ourShader = Shader::FromPath("shaders/shader.vert", "shaders/shader.frag");
-  ourShader.use();
-  Shader skyBoxShader = Shader::FromPath("shaders/skybox.vert", "shaders/skybox.frag");
   debugShader = Shader::FromPath("shaders/debug.vert", "shaders/debug.frag");
+  Shader skyBoxShader = Shader::FromPath("shaders/skybox.vert", "shaders/skybox.frag");
 
-  camera = Camera::Default();
-  camera.position = glm::vec3(0.0, 3.0, 3.0f);
-  camera.Rotate(500.0f, -400.0f);
-  camera.aspect_ratio = (float) WIDTH / (float) HEIGHT;
+  debugCamera = Camera::Default();
+  debugCamera.position = glm::vec3(0.0f, 3.0f, 3.0f);
 
-  Model nanosuit = Model::FromPath("res/nanosuit/nanosuit.obj");
+  Model hand = Model::FromPath("res/hand/hand.obj");
+  for(Mesh mesh : hand.meshes) {
+    mesh.material = Material::DebugLight();
+    mesh.textures.clear();
+  }
+
+  vector<Model> statues;
+  Model statue = Model::FromPath("res/statue/12330_Statue_v1_L2.obj");
+  statue.transform = glm::rotate(statue.transform, glm::radians(-90.0f), glm::vec3(1,0,0));
+  statue.transform = glm::scale(statue.transform, glm::vec3(1.5f));
+  statues.push_back(statue);
 
 	Model sphere_model = Model::FromMesh(Mesh::Sphere());
+
+  Entity player_entity = Entity::FromModel(&hand);
+  player_entity.model->transform = glm::rotate(
+      player_entity.model->transform,
+      glm::radians(-90.0f),
+      glm::vec3(1.0f, 0.0f, 0.0f)
+  );
+  player_entity.model->transform = glm::rotate(
+      player_entity.model->transform,
+      glm::radians(195.0f),
+      glm::vec3(0.0f, 0.0f, 1.0f)
+  );
+  player = Player::FromEntity(player_entity);
 
   Mesh skySphere = Mesh::Sphere();
 
@@ -102,55 +118,70 @@ int main() {
 
   DirectionalLight dlight = DirectionalLight::Default();
   dlight.direction = glm::vec4(0.8f, 2.0f, 1.2f, 0.0f);
-  dlight.color     = glm::vec4(0.1f);
+  dlight.color     = glm::vec4(0.4f);
   dlight.ambient   = glm::vec4(0.0f);
   scene.directional_lights.push_back(dlight);
 
-  int map[10][10] = {
-      {1,1,1,1,1,1,1,1,1,1},
-      {1,0,0,0,0,0,1,0,0,1},
-      {1,0,0,1,1,1,1,0,0,1},
-      {1,0,0,1,0,0,1,0,0,1},
-      {1,0,0,0,0,0,1,0,0,1},
-      {1,0,0,1,1,1,1,1,0,1},
-      {1,0,0,0,0,0,0,0,0,1},
-      {1,1,1,0,0,0,0,0,0,1},
-      {1,0,0,0,0,0,0,0,0,1},
-      {1,1,1,1,1,1,1,1,1,1}
-  };
+  Texture wall_diffuse_texture = Texture::FromPath("res/brickwall/brickwall.jpg");
+  Texture wall_normal_texture  = Texture::FromPath("res/brickwall/brickwall_normal.jpg");
+  Texture floor_diffuse_texture = Texture::FromPath("res/Brick_Wall_009/Brick_Wall_009_COLOR.jpg");
+  Texture floor_normal_texture  = Texture::FromPath("res/Brick_Wall_009/Brick_Wall_009_NORM.jpg");
 
-  Texture tile_diffuse_texture = Texture::FromPath("res/brickwall/brickwall.jpg");
-  tile_diffuse_texture.type = "uTextureDiffuse";
+  // Normal maps were so not worth the effort to get them to work
 
-  Texture tile_normal_texture = Texture::FromPath("res/brickwall/brickwall_normal.jpg");
-  tile_normal_texture.type = "uTextureNormal";
+  wall_diffuse_texture.type = "uTextureDiffuse";
+  wall_normal_texture.type  = "uTextureNormal";
+
+  floor_diffuse_texture.type = "uTextureDiffuse";
+  floor_normal_texture.type  = "uTextureNormal";
 
   Mesh tile_mesh  = Mesh::Cube();
-  tile_mesh.material = Material::Default();
-  tile_mesh.textures.push_back(tile_diffuse_texture);
-  tile_mesh.textures.push_back(tile_normal_texture);
 
-  Model tile_floor = Model::FromMesh(tile_mesh);
+  tile_mesh.material = Material::Default();
+  tile_mesh.textures.push_back(wall_normal_texture);
   Model tile_wall  = Model::FromMesh(tile_mesh);
+
+  tile_mesh.material = Material::DebugLight();
+  tile_mesh.textures.clear();
+  tile_mesh.textures.push_back(floor_normal_texture);
+  Model tile_floor = Model::FromMesh(tile_mesh);
+
+
+  Maze maze = Maze::Default(10, 10);
 
   float map_scale = 1.0f;
 
-
-  for (int i = 0; i < 10; i++) {
-    for (int j = 0; j < 10; j++) {
+  for (int i = 0; i < maze.tiles.size(); i++) {
+    for(int j = 0; j < maze.tiles[0].size(); j++) {
       Entity* e = new Entity;
       glm::vec3 pos = glm::vec3(0.0f);
+      pos.x = (i-10) * map_scale;
+      pos.z = (j-10) * map_scale;
 
-      if (map[i][j] == 0) {
+      switch(maze.tiles[i][j]) {
+
+      case Maze::TileType::FLOOR:
         *e = Entity::FromModel(&tile_floor);
-        pos.y = 0.0f + 0.01f * (rand() % 3);
-      } else {
+        pos.y = (-0.5f + 0.01f * (rand() % 3)) * map_scale;
+        break;
+
+      case Maze::TileType::WALL:
         *e = Entity::FromModel(&tile_wall);
-        pos.y = 1.0f;
+        pos.y = (0.5f) * map_scale;
+        break;
+
+      case Maze::TileType::STATUE:
+        *e = Entity::FromModel(&tile_floor);
+        pos.y = (-0.5f + 0.01f * (rand() % 3)) * map_scale;
+
+        Entity* s = new Entity;
+        *s = Entity::FromModel(&statue);
+        s->setRotation(glm::vec3(0.0f, 0.0f, glm::radians((float)(rand() % 360))));
+        s->setPosition(pos + glm::vec3(0.0f, 0.50f, 0.0f) * map_scale);
+        s->setScale(glm::vec3(map_scale));
+        scene.entities.push_back(s);
       }
 
-      pos.x = i;
-      pos.z = j;
       e->setPosition(pos);
       e->setScale(glm::vec3(map_scale));
 
@@ -158,11 +189,6 @@ int main() {
     }
   }
 
-  Entity * suit = new Entity;
-  *suit = Entity::FromModel(&nanosuit);
-  suit->setPosition(glm::vec3(2.0f, 0.0f, 2.0f));
-  suit->setScale(glm::vec3(0.2f));
-  scene.entities.push_back(suit);
 
   Bezier<glm::vec4> b1;
   b1.control_points.push_back(glm::vec4(2.0f, 1.0f, 2.0f, 1.0f));
@@ -187,12 +213,18 @@ int main() {
 
   // Viewport blah
   glViewport(0, 0, WIDTH, HEIGHT);
+  glEnable(GL_FRAMEBUFFER_SRGB);
 
   double px = 0.0, py = 0.0;
 
   while (!glfwWindowShouldClose(window)) {
-    double mx, my;
-    glfwGetCursorPos(window, &mx, &my);
+
+    // Who doesn't love pointer juggling
+    if(currentMode == GameMode::PLAY) {
+        activeCamera = &player.camera;
+    } else if(currentMode == GameMode::DEBUG) {
+        activeCamera = &debugCamera;
+    }
 
     float currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
@@ -200,31 +232,15 @@ int main() {
 
     processInput(window);
 
-    glEnable(GL_FRAMEBUFFER_SRGB);
+    if (currentMode == GameMode::PLAY) {
+      player.processInput(window, deltaTime);
+    }
+
     glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     ourShader.use();
-    ourShader.setCamera(camera);
-
-    if (scene.selected_entity && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-      int vp[4];
-
-      glGetIntegerv(GL_VIEWPORT, vp);
-
-      glm::vec3 cursor_pos = glm::unProject(
-          glm::vec3((float)mx, (float)(HEIGHT - my), 0),
-          camera.getViewMatrix(),
-          camera.getProjectionMatrix(),
-          glm::vec4(vp[0], vp[1], vp[2], vp[3])
-      );
-
-      glm::vec3 dir = glm::normalize(camera.position - cursor_pos);
-
-      float t = Plane::PointNormal(scene.selected_entity->getPosition(), camera.front).ray_test(cursor_pos, dir);
-
-      scene.selected_entity->setPosition(cursor_pos + t * dir);
-    }
+    ourShader.setCamera(*activeCamera);
 
     scene.point_lights[0].position = b1.at(glfwGetTime() / 5.0);
     scene.point_lights[1].position = b2.at(glfwGetTime() / 5.0);
@@ -237,26 +253,27 @@ int main() {
     scene.point_lights[1].color = glm::vec4(at2, at3, at1, 1.0f);
 
     scene.draw(ourShader);
+    player.draw(ourShader);
 
-    if (DEBUG) {
+    if (currentMode == GameMode::DEBUG) {
       debugShader.use();
-      debugShader.setCamera(camera);
+      debugShader.setCamera(*activeCamera);
+
       for (PointLight p : scene.point_lights) {
         debug.draw_point_light(debugShader, p);
       }
+
       debug.draw_grid(debugShader);
     }
 
     glDepthFunc(GL_LEQUAL);
 
     skyBoxShader.use();
-    skyBoxShader.setCamera(camera);
+    skyBoxShader.setCamera(*activeCamera);
     skySphere.draw(skyBoxShader);
 
     glDepthFunc(GL_LESS);
 
-    px = mx;
-    py = my;
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
@@ -283,25 +300,61 @@ void panic(const char* description) {
   std::exit(1);
 }
 
+void init() {
+  printf("Started OpenGL-Testing v%d.%d\n", MAJOR_VERSION, MINOR_VERSION);
+
+  if (!glfwInit()) panic("Could not initialize glfw\n");
+
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
+  window = glfwCreateWindow(WIDTH, HEIGHT, "OpenGL-Testing", NULL, NULL);
+  if(!window) panic("Could not create window\n");
+
+  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  // Just so that glfw knows how to give us them sweet, sweet errors
+  // This has saved me more time than you know
+  glfwSetErrorCallback(error_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
+  glfwSetCursorPosCallback(window, mouse_callback);
+
+  glfwMakeContextCurrent(window);
+
+  printf("Running OpenGL Version %s\n", glGetString(GL_VERSION));
+  printf("Running GLSL Version %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+  // Thanks I hate it
+  glewInit();
+
+  glEnable(GL_DEPTH_TEST);
+
+}
+
+void mouse_callback(
+  GLFWwindow* window, double xpos, double ypos
+) {
+  if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+
+    if(scene.selected_entity) {
+      glm::vec3 cursor_pos = Input::getCursorWorldPosition(window, *activeCamera);
+      glm::vec3 dir = glm::normalize(activeCamera->position - cursor_pos);
+      float t = Plane::PointNormal(scene.selected_entity->getPosition(), activeCamera->front)
+                .ray_test(cursor_pos, dir);
+      scene.selected_entity->setPosition(cursor_pos + t * dir);
+    }
+  }
+}
+
 void mouse_button_callback(
 	GLFWwindow* window, int button, int action, int mods
 ) {
 	switch(button){
 		case GLFW_MOUSE_BUTTON_LEFT:
 			if(action == GLFW_PRESS) {
-				int vp[4];
-				glGetIntegerv(GL_VIEWPORT, vp);
-				double mx, my;
-				glfwGetCursorPos(window, &mx, &my);
-				glm::vec3 cursor_pos = glm::unProject(
-								glm::vec3((float)mx, (float)(HEIGHT - my), 0),
-								camera.getViewMatrix(),
-								camera.getProjectionMatrix(),
-								glm::vec4(vp[0], vp[1], vp[2], vp[3])
-				);
-
-				glm::vec3 dir = glm::normalize(camera.position - cursor_pos);
-
+        glm::vec3 cursor_pos = Input::getCursorWorldPosition(window, *activeCamera);
+				glm::vec3 dir = glm::normalize(activeCamera->position - cursor_pos);
         scene.select_by_ray_cast(cursor_pos, dir);
 			}
 	}
@@ -311,32 +364,38 @@ void processInput(GLFWwindow *window) {
   if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);
 
-	float look_speed = camera.mouse_sensitivity * deltaTime;
-  // Camera controls
-	if(glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS)
-		camera.Rotate(-look_speed, 0.0f);
-	if(glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
-		camera.Rotate(+look_speed, 0.0f);
-	if(glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
-		camera.Rotate(0.0f, -look_speed);
-	if(glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
-		camera.Rotate(0.0f, +look_speed);
+  if(glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+    currentMode = currentMode == GameMode::DEBUG ? GameMode::PLAY : GameMode::DEBUG;
 
-	if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.Translate(Camera::Movement::FORWARD, deltaTime);
-	if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		camera.Translate(Camera::Movement::LEFT, deltaTime);
-	if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		camera.Translate(Camera::Movement::BACKWARD, deltaTime);
-	if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		camera.Translate(Camera::Movement::RIGHT, deltaTime);
+  if (currentMode == GameMode::DEBUG) {
+    float look_speed = debugCamera.mouse_sensitivity * deltaTime;
 
-	if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-		camera.Translate(Camera::Movement::LEFT, deltaTime);
-	if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-		camera.Translate(Camera::Movement::RIGHT, deltaTime);
-	if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-		camera.Translate(Camera::Movement::UP, deltaTime);
-	if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-		camera.Translate(Camera::Movement::DOWN, deltaTime);
+    // Camera controls
+    if(glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS)
+      debugCamera.rotate(-look_speed, 0.0f);
+    if(glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+      debugCamera.rotate(+look_speed, 0.0f);
+    if(glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
+      debugCamera.rotate(0.0f, -look_speed);
+    if(glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+      debugCamera.rotate(0.0f, +look_speed);
+
+    if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+      debugCamera.translate(Camera::Movement::FORWARD, deltaTime);
+    if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+      debugCamera.translate(Camera::Movement::LEFT, deltaTime);
+    if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+      debugCamera.translate(Camera::Movement::BACKWARD, deltaTime);
+    if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+      debugCamera.translate(Camera::Movement::RIGHT, deltaTime);
+
+    if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+      debugCamera.translate(Camera::Movement::LEFT, deltaTime);
+    if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+      debugCamera.translate(Camera::Movement::RIGHT, deltaTime);
+    if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+      debugCamera.translate(Camera::Movement::UP, deltaTime);
+    if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+      debugCamera.translate(Camera::Movement::DOWN, deltaTime);
+  }
 }

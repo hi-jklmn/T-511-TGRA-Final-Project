@@ -14,6 +14,7 @@ public:
     static constexpr float DEFAULT_SPEED       =  2.5f;
     static constexpr float DEFAULT_SENSITIVITY =  10.0f;
     static constexpr float DEFAULT_ZOOM        =  70.0f;
+    static constexpr float ASPECT_RATIO        =  1024.0 / 768.0; //TODO
 
     enum Movement {
         FORWARD,
@@ -49,8 +50,8 @@ public:
         c.zoom              = Camera::DEFAULT_ZOOM;
         c.movement_speed    = Camera::DEFAULT_SPEED;
         c.mouse_sensitivity = Camera::DEFAULT_SENSITIVITY;
+        c.aspect_ratio      = ASPECT_RATIO;
         c.updateCameraVectors();
-        c.aspect_ratio = 1.0f;
         return c;
     }
 
@@ -93,9 +94,14 @@ public:
         return glm::perspective(glm::radians(zoom), aspect_ratio, 0.1f, 100.0f);
     }
 
-    void Translate(Camera::Movement direction, float deltaTime) {
+    void setPosition(glm::vec3 pos) {
+        position = pos;
+    }
+
+    void translate(Camera::Movement direction, float deltaTime) {
 
         float velocity = movement_speed * deltaTime;
+
         if (direction == FORWARD)
             position += front * velocity;
         if (direction == BACKWARD)
@@ -110,36 +116,21 @@ public:
             position -= up * velocity;
     }
 
-    void Rotate(
-				float xoffset,
-				float yoffset,
-				GLboolean constrainPitch = true
-		) {
-        xoffset *= mouse_sensitivity;
-        yoffset *= mouse_sensitivity;
-
-        yaw   += xoffset;
-        pitch += yoffset;
-
-        if (constrainPitch)
-        {
-            if (pitch > 89.0f)
-                pitch = 89.0f;
-            if (pitch < -89.0f)
-                pitch = -89.0f;
-        }
-
+    void setRotation(float theta, float phi) {
+        yaw   = theta;
+        pitch = phi;
         updateCameraVectors();
     }
 
-    void ProcessMouseScroll(float yoffset)
-    {
-        if (zoom >= 1.0f && zoom <= 45.0f)
-            zoom -= yoffset;
-        if (zoom <= 1.0f)
-            zoom = 1.0f;
-        if (zoom >= 45.0f)
-            zoom = 45.0f;
+    // Anyone need fraternity name ideas?
+    void rotate(float delta_theta, float delta_phi) {
+        delta_theta *= mouse_sensitivity;
+        delta_phi   *= mouse_sensitivity;
+
+        yaw   += delta_theta;
+        pitch += delta_phi;
+
+        updateCameraVectors();
     }
 
 private:

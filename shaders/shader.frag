@@ -13,7 +13,10 @@ uniform vec4 uEyePosition;
 
 // Hacky bullshit
 uniform bool uSelected;
+
 uniform bool uTextured;
+uniform bool uNormaled;
+uniform bool uSpecmapped;
 
 // Varying parameters from vertex shader
 in vec2 vTexCoords;
@@ -63,7 +66,6 @@ struct PointLight {
 #define MAX_NR_OF_POINT_LIGHTS 5
 uniform PointLight uPointLights[MAX_NR_OF_POINT_LIGHTS];
 
-// Preinitialized globals?
 // modified equation (9) from 'Real Shading in Unreal Engine 4' by Brian Karis
 float fLightFalloff(float distance, float lightRadius, float scale) {
     //
@@ -71,6 +73,7 @@ float fLightFalloff(float distance, float lightRadius, float scale) {
     // falloff = ----------------------------------------       (9)
     //                      distance^2 + 1
     //
+    // Note(j):
     // Apparently "saturate" is just clamp(x, 0.0, 1.0) and is a HLSL term
     //
     distance = distance / scale;
@@ -109,7 +112,7 @@ vec4 fPointLightFactor(PointLight light, vec4 normal, vec4 viewDir, Material mat
     vec4 specular = material.specular * fPhong(normal, lightDir, material.shininess);
     //vec4 specular = material.specular * fBlinnPhong(normal, lightDir, viewDir, material.shininess);
 
-    return light.color * (/*material.ambient +*/ intensity * (diffuse + specular));
+    return intensity * light.color * (material.ambient + diffuse + specular);
 }
 
 void main()
@@ -122,21 +125,18 @@ void main()
     Material material = uMaterial;
     // TODO TODO TODO TODO
     // Hacky, pls fix
-		//if (uMaterial.uTextureDiffuse1 > 1) {
+		if (uTextured) {
         material.ambient = vec4(0.0);
         material.diffuse = texture(uTextureDiffuse1, vTexCoords);
-        //}
+    }
 
-        //if (uMaterial.uTextureSpecular1 > 0) {
-        //material.specular = texture(uTextureSpecular1, vTexCoords);
-        //}
+    if(uNormaled) {
+      normal = vec4(normalize(vTangentMatrix * normalize(texture(uTextureNormal1, vTexCoords).rgb * 2 - 1)),0.0);
+    }
 
-        //if (uMaterial.uTextureNormal1 > 0) {
-        //normal = normalize(vTangentMatrix * vec4(texture(uTextureNormal1, vTexCoords).rgb * 2.0 - 1.0, 0.0));
-        //normal = normalize(uModelMatrix * vec4(texture(uTextureNormal1, vTexCoords).rgb,0.0));
-        //normal = normalize(vec4(texture(uTextureNormal1, vTexCoords).rgb * 2 - 1, 0.0));
-        normal = vec4(normalize(vTangentMatrix * normalize(texture(uTextureNormal1, vTexCoords).rgb * 2 - 1)),0.0);
-        //}
+    if(uSpecmapped) {
+      material.specular = texture(uTextureSpecular1, vTexCoords);
+    }
 
     for (int i = 0; i < MAX_NR_OF_POINT_LIGHTS; i++) {
         if (uPointLights[i].is_lit == 1) {

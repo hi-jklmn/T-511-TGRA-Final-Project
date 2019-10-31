@@ -22,9 +22,9 @@ PointLight PointLight::Default() {
 Material Material::Default() {
     Material m;
     m.ambient   = glm::vec4(0.1);
-    m.diffuse   = glm::vec4(0.8);
-    m.specular  = glm::vec4(0.0);
-    m.shininess = 10.0f;
+    m.diffuse   = glm::vec4(0.8f, 1.0f, 0.8f, 1.0f);
+    m.specular  = glm::vec4(0.5);
+    m.shininess = 32.0f;
     m.emissive  = 0.0f;
     return m;
 }
@@ -34,7 +34,17 @@ Material Material::DebugLight() {
     m.ambient   = glm::vec4(1.0);
     m.diffuse   = glm::vec4(1.0);
     m.specular  = glm::vec4(1.0);
-    m.shininess = 10.0f;
+    m.shininess = 32.0f;
+    m.emissive  = 0.0f;
+    return m;
+}
+
+Material Material::Hand() {
+    Material m;
+    m.ambient   = glm::vec4(0.6, 1.0, 0.8, 1.0);
+    m.diffuse   = glm::vec4(0.6, 1.0, 0.8, 1.0);
+    m.specular  = glm::vec4(0.0);
+    m.shininess = 32.0f;
     m.emissive  = 0.0f;
     return m;
 }
