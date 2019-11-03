@@ -68,7 +68,7 @@ void Shader::use()
     glUseProgram(ID);
 }
 
-void Shader::setDirectionalLight(int number, DirectionalLight light) {
+void Shader::setDirectionalLight(int number, const DirectionalLight &light) const {
   std::string s_light = "uDirectionalLights[" + std::to_string(number) + "]";
   setBool(s_light + ".is_lit", light.is_lit);
   setVec4(s_light + ".direction", light.direction);
@@ -76,7 +76,7 @@ void Shader::setDirectionalLight(int number, DirectionalLight light) {
   setVec4(s_light + ".color", light.color);
 }
 
-void Shader::setPointLight(int number, PointLight light) {
+void Shader::setPointLight(int number, const PointLight &light) const {
     std::string s_light = "uPointLights[" + std::to_string(number) + "]";
     setBool(s_light + ".is_lit", light.is_lit);
     setFloat(s_light + ".radius", light.radius);
@@ -84,12 +84,37 @@ void Shader::setPointLight(int number, PointLight light) {
     setVec4(s_light + ".color", light.color);
 }
 
-void Shader::setMaterial(const std::string &name, Material material) const {
-    setVec4(name + ".ambient", material.ambient);
-    setVec4(name + ".diffuse", material.ambient);
-    setVec4(name + ".specular", material.ambient);
-    setFloat(name + ".shininess", material.shininess);
-    setFloat(name + ".emissive", material.emissive);
+void Shader::setMaterial(const std::string &name, const Material &material) const {
+
+    // Really ugly, but used to be name + ".<parameter>" which caused this function to be 34% of CPU time
+    // This uses 14% of CPU time. This is due to preallocation of the string and += being faster for some weird reason
+
+    std::string temp;
+
+    //temp = name;
+    //temp += ".ambient";
+    temp = name + ".ambient";
+    setVec4(temp, material.ambient);
+
+    //temp = name;
+    //temp += ".diffuse";
+    temp = name + ".diffuse";
+    setVec4(temp, material.diffuse);
+
+    //temp = name;
+    //temp += ".specular";
+    temp = name + ".specular";
+    setVec4(temp, material.specular);
+
+    //temp = name;
+    //temp += ".shininess";
+    temp = name + ".shininess";
+    setFloat(temp, material.shininess);
+
+    //temp = name;
+    //temp += ".emissive";
+    temp = name + ".emissive";
+    setFloat(temp, material.emissive);
 }
 
 // utility uniform functions

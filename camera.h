@@ -14,7 +14,7 @@ public:
     static constexpr float DEFAULT_SPEED       =  2.5f;
     static constexpr float DEFAULT_SENSITIVITY =  10.0f;
     static constexpr float DEFAULT_ZOOM        =  70.0f;
-    static constexpr float ASPECT_RATIO        =  1024.0 / 768.0; //TODO
+    static constexpr float ASPECT_RATIO        =  1024.0f / 768.0f; //TODO
 
     enum Movement {
         FORWARD,

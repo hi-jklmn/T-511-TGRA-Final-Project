@@ -60,11 +60,11 @@ public:
       setMat4("uViewMatrix",       camera.getViewMatrix());
       setVec4("uEyePosition",      glm::vec4(camera.position, 1.0));
     }
-    void setDirectionalLight(int number, DirectionalLight light);
+    void setDirectionalLight(int number, const DirectionalLight &light) const;
 
-    void setPointLight(int number, PointLight light);
+    void setPointLight(int number, const PointLight &light) const;
 
-    void setMaterial(const std::string &name, Material material) const;
+    void setMaterial(const std::string &name, const Material &material) const;
 
     void setBool(const std::string &name, bool value) const;
     void setInt(const std::string &name, int value) const;

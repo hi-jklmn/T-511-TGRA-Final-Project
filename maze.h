@@ -34,24 +34,29 @@ class Maze {
       int x,y;
     };
 
-    bool marked[w][h];
+    // Goddamn MSVC doesn't understand runtime sized stack-allocated arrays
+    // bool marked[w][h] <-- apparently only available on GCC >:(
+    // This irritates me a lot because this makes the code considerably less performant though it doesn't matter much here
+    vector<vector<bool>> marked(w);
 
     for (int i = 0; i < w; i++) {
-      for (int j = 0; j < h; j++) {
-        marked[i][j] = false;
-      }
+        marked[i].resize(h);
+        for (int j = 0; j < h; j++) {
+            marked[i][j] = false;
+        }
     }
 
     P mdim;
     mdim.x = 2*w + 1;
     mdim.y = 2*h + 1;
 
-    TileType maze[mdim.x][mdim.y];
+    vector<vector<TileType>> maze(mdim.x);
 
     for (int i = 0; i < mdim.x; i++) {
-      for (int j = 0; j < mdim.y; j++) {
-        maze[i][j] = (rand() % 10) < 9 ? TileType::WALL : TileType::STATUE;
-      }
+        maze[i].resize(mdim.y);
+        for (int j = 0; j < mdim.y; j++) {
+            maze[i][j] = (rand() % 10) < 9 ? TileType::WALL : TileType::STATUE;
+        }
     }
 
     P start;

@@ -48,7 +48,7 @@ public:
     vector<Texture> textures
   );
 
-  void draw(Shader shader);
+  void draw(Shader shader) const;
 
   static Mesh Cube();
   static Mesh BadCube();
