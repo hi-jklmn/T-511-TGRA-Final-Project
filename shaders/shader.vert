@@ -21,9 +21,11 @@ void main()
     vec4 position = vec4(aPos, 1.0);
     vec3 T = normalize(vec3(uModelMatrix * vec4(aTangent,   0.0)));
     vec3 N = normalize(vec3(uModelMatrix * vec4(aNormal,    0.0)));
+	// Make sure tangent is orthogonal to the normal
     T = normalize(T - dot(T, N) * N);
     vec3 B = normalize(vec3(uModelMatrix * vec4(aBitangent, 0.0)));
 
+	// Make sure that the bitangent points in the right direction
     if(dot(cross(N.xyz, T.xyz), B.xyz) < 0.0) {
       T = T * -1;
     }

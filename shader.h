@@ -10,81 +10,84 @@
 #include <iostream>
 
 #include "camera.h"
+#include "assman.h"
 
 #define MAX_NR_OF_POINT_LIGHTS 5
 
 // Heavily influenced by and in part lifted from learnopengl.com
 struct DirectionalLight {
-  int is_lit;
-  glm::vec4 direction;
+    int is_lit;
+    glm::vec4 direction;
 
-  glm::vec4 ambient;
-  glm::vec4 color;
+    glm::vec4 ambient;
+    glm::vec4 color;
 
-  static DirectionalLight Default();
+    static DirectionalLight Default();
 };
 
 struct PointLight {
-  bool is_lit;
-  float radius;
+    bool is_lit;
+    float radius;
 
-  glm::vec4 position;
-  glm::vec4 color;
+    glm::vec4 position;
+    glm::vec4 color;
 
-  static PointLight Default();
+    static PointLight Default();
 };
 
 struct Material {
-  glm::vec4 ambient;
-  glm::vec4 diffuse;
-  glm::vec4 specular;
+    glm::vec4 diffuse;
+    glm::vec4 specular;
 
-  float shininess;
-  float emissive;
+    float shininess;
 
-  static Material Default();
-  static Material DebugLight();
-  static Material Hand();
+    static Material Default();
+    static Material DebugLight();
+    static Material Hand();
 };
 
 class Shader
 {
-public:
+private:
     unsigned int ID;
-    static Shader FromPath(const char* vertexPath, const char* fragmentPath, const char* geometryPath = nullptr);
+
+    unsigned int uModelMatrix; // One of the worst offenders
+    unsigned int uViewMatrix;
+    unsigned int uProjectionMatrix;
+
+    void setup_handles();
+    void checkCompileErrors(GLuint shader, std::string type);
+    void setup(const char* vertexPath, const char* fragmentPath);
+public:
+    static Shader FromPath(const char* vertexPath, const char* fragmentPath);
 
     void use();
 
-    void setCamera(Camera camera) {
-      setMat4("uProjectionMatrix", camera.getProjectionMatrix());
-      setMat4("uViewMatrix",       camera.getViewMatrix());
-      setVec4("uEyePosition",      glm::vec4(camera.position, 1.0));
-    }
-    void setDirectionalLight(int number, const DirectionalLight &light) const;
+    void setCamera(const Camera& camera) const;
 
-    void setPointLight(int number, const PointLight &light) const;
+    void setModelMatrix(const glm::mat4 &model_matrix) const;
+    void setDirectionalLight(int number, const DirectionalLight& light) const;
 
-    void setMaterial(const std::string &name, const Material &material) const;
+    void setPointLight(int number, const PointLight& light) const;
 
-    void setBool(const std::string &name, bool value) const;
-    void setInt(const std::string &name, int value) const;
-    void setFloat(const std::string &name, float value) const;
+    void setMaterial(const std::string& name, const Material& material) const;
 
-    void setVec2(const std::string &name, const glm::vec2 &value) const;
-    void setVec2(const std::string &name, float x, float y) const;
+    void setBool(const std::string& name, bool value) const;
+    void setInt(const std::string& name, int value) const;
+    void setFloat(const std::string& name, float value) const;
 
-    void setVec3(const std::string &name, const glm::vec3 &value) const;
-    void setVec3(const std::string &name, float x, float y, float z) const;
+    void setVec2(const std::string& name, const glm::vec2& value) const;
+    void setVec2(const std::string& name, float x, float y) const;
 
-    void setVec4(const std::string &name, const glm::vec4 &value) const;
-    void setVec4(const std::string &name, float x, float y, float z, float w);
+    void setVec3(const std::string& name, const glm::vec3& value) const;
+    void setVec3(const std::string& name, float x, float y, float z) const;
 
-    void setMat2(const std::string &name, const glm::mat2 &mat) const;
-    void setMat3(const std::string &name, const glm::mat3 &mat) const;
-    void setMat4(const std::string &name, const glm::mat4 &mat) const;
+    void setVec4(const std::string& name, const glm::vec4& value) const;
+    void setVec4(const std::string& name, float x, float y, float z, float w);
 
-private:
-    void checkCompileErrors(GLuint shader, std::string type);
-    void setup(const char* vertexPath, const char* fragmentPath, const char* geometryPath);
+    void setMat2(const std::string& name, const glm::mat2& mat) const;
+    void setMat3(const std::string& name, const glm::mat3& mat) const;
+    void setMat4(const std::string& name, const glm::mat4& mat) const;
+
 };
 #endif

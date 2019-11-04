@@ -1,16 +1,6 @@
 #version 330 core
 out vec4 FragColor;
 
-uniform sampler2D uTextureDiffuse1;
-uniform sampler2D uTextureSpecular1;
-uniform sampler2D uTextureNormal1;
-
-uniform mat4 uModelMatrix;
-uniform mat4 uViewMatrix;
-uniform mat4 uProjectionMatrix;
-
-uniform vec4 uEyePosition;
-
 in float height;
 
 void main()

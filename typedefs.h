@@ -6,12 +6,12 @@
 
 using namespace glm;
 
-using s8  = int8_t;
+using s8 = int8_t;
 using s16 = int16_t;
 using s32 = int32_t;
 using s64 = int64_t;
 
-using s8  = uint8_t;
+using s8 = uint8_t;
 using s16 = uint16_t;
 using s32 = uint32_t;
 using s64 = uint64_t;

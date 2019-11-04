@@ -1,9 +1,9 @@
 #version 450 core
 out vec4 FragColor;
 
-layout (location = 0) uniform sampler2D uTextureDiffuse1;
-layout (location = 1) uniform sampler2D uTextureSpecular1;
-layout (location = 2) uniform sampler2D uTextureNormal1;
+layout (location = 0) uniform sampler2D uTextureDiffuse;
+layout (location = 1) uniform sampler2D uTextureSpecular;
+layout (location = 2) uniform sampler2D uTextureNormal;
 
 uniform mat4 uModelMatrix;
 uniform mat4 uViewMatrix;
@@ -28,16 +28,10 @@ in vec4 vTangent;
 in vec4 vBitangent;
 
 struct Material {
-    vec4 ambient;
     vec4 diffuse;
     vec4 specular;
 
-    int uTextureDiffuse1;
-    int uTextureSpecular1;
-    int uTextureNormal1;
-
     float shininess;
-    float emissive;
 };
 
 uniform Material uMaterial;
@@ -99,7 +93,7 @@ vec4 fDirectionalLightFactor(DirectionalLight light, vec4 normal, vec4 viewDir, 
     vec4 diffuse  = material.diffuse  * fLambert(normal, lightDir);
     vec4 specular = material.specular * fPhong(normal, lightDir, 64);
     //vec4 specular = material.specular * fBlinnPhong(normal, light.direction, viewDir, material.shininess);
-    return light.ambient * material.ambient + light.color * (diffuse + specular);
+    return light.ambient * material.diffuse + light.color * (diffuse + specular);
 }
 
 vec4 fPointLightFactor(PointLight light, vec4 normal, vec4 viewDir, Material material) {
@@ -112,7 +106,7 @@ vec4 fPointLightFactor(PointLight light, vec4 normal, vec4 viewDir, Material mat
     vec4 specular = material.specular * fPhong(normal, lightDir, material.shininess);
     //vec4 specular = material.specular * fBlinnPhong(normal, lightDir, viewDir, material.shininess);
 
-    return intensity * light.color * (material.ambient + diffuse + specular);
+    return intensity * light.color * (diffuse + specular);
 }
 
 void main()
@@ -123,19 +117,17 @@ void main()
     vec4 viewDir = normalize(uEyePosition - vFragPos);
 
     Material material = uMaterial;
-    // TODO TODO TODO TODO
-    // Hacky, pls fix
-		if (uTextured) {
-        material.ambient = vec4(0.0);
-        material.diffuse = texture(uTextureDiffuse1, vTexCoords);
+
+	if (uTextured) {
+        material.diffuse = texture(uTextureDiffuse, vTexCoords);
     }
 
     if(uNormaled) {
-      normal = vec4(normalize(vTangentMatrix * normalize(texture(uTextureNormal1, vTexCoords).rgb * 2 - 1)),0.0);
+		normal = vec4(normalize(vTangentMatrix * normalize(texture(uTextureNormal, vTexCoords).rgb * 2 - 1)),0.0);
     }
 
     if(uSpecmapped) {
-      material.specular = texture(uTextureSpecular1, vTexCoords);
+		material.specular = texture(uTextureSpecular, vTexCoords);
     }
 
     for (int i = 0; i < MAX_NR_OF_POINT_LIGHTS; i++) {
@@ -152,9 +144,7 @@ void main()
 
     // Fresnel attempt
     if (uSelected) {
-      float R = 0.0 + 0.2 * pow(1.0 + dot(viewDir, normal), 4);
-      FragColor = mix(vec4(1.0,1.0,0.2,1.0), FragColor, R);
+		float R = 0.0 + 0.2 * pow(1.0 + dot(viewDir, normal), 4);
+		FragColor = mix(vec4(1.0,1.0,0.2,1.0), FragColor, R);
     }
-
-    //FragColor = normal;
 }

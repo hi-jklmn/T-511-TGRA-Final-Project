@@ -14,69 +14,70 @@
 #include <glm/gtc/constants.hpp>
 
 #include "assman.h"
-
-using namespace std;
-
-unsigned int texture_from_file(const char *path, const string &directory, bool gamma);
+#include "shader.h"
 
 struct Vertex {
-  glm::vec3 Position;
-  glm::vec3 Normal;
-  glm::vec3 Tangent;
-  glm::vec3 Bitangent;
-  glm::vec2 TexCoords;
+    glm::vec3 Position;
+    glm::vec3 Normal;
+    glm::vec3 Tangent;
+    glm::vec3 Bitangent;
+    glm::vec2 TexCoords;
 };
 
 class Mesh {
 private:
-  /*  Render data  */
-  unsigned int VAO, VBO, EBO;
+    /*  Render data  */
+    unsigned int VAO, VBO, EBO;
 
-  GLenum draw_mode;
+    GLenum draw_mode;
 
-  /*  Functions    */
-  void setupMesh();
+    /*  Functions    */
+    void setupMesh();
 public:
-  vector<Vertex> vertices;
-  vector<unsigned int> indices;
-  vector<Texture> textures;
-  Material material;
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
 
-  Mesh(
-  	vector<Vertex> vertices,
-    vector<unsigned int> indices,
-    vector<Texture> textures
-  );
+    Texture diffuseTexture;
+    Texture specularTexture;
+    Texture normalTexture;
 
-  void draw(Shader shader) const;
+    Material material;
 
-  static Mesh Cube();
-  static Mesh BadCube();
-  static Mesh Sphere(int divisions = 64);
+    Mesh(
+        std::vector<Vertex> vertices,
+        std::vector<unsigned int> indices,
+        std::vector<Texture> textures
+    );
+
+    void draw(Shader shader) const;
+
+    static Mesh Cube();
+    static Mesh BadCube();
+    static Mesh Sphere(int divisions = 64);
 };
 
 class Model {
 private:
-  string directory;
-  vector<Texture> textures_loaded;
+    std::string directory;
+    std::vector<Texture> textures_loaded;
 
-  void processNode(aiNode *node, const aiScene *scene);
+    void processNode(aiNode* node, const aiScene* scene);
 
-  void loadModel(string path);
+    void loadModel(std::string path);
 
-  vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName);
+    std::vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, Texture::Type texture_type);
 
-  Mesh processMesh(aiMesh *mesh, const aiScene *scene);
+    Mesh processMesh(aiMesh* mesh, const aiScene* scene);
 
 public:
 
-  vector<Mesh> meshes;
-  glm::mat4 transform;
+    std::vector<Mesh> meshes;
+    glm::mat4 transform;
 
-  static Model FromPath(string path);
-  static Model FromMesh(Mesh mesh);
-  static Model FromMeshes(vector<Mesh> meshes);
+    static Model FromPath(std::string path);
+    static Model FromMesh(Mesh mesh);
+    static Model FromMeshes(std::vector<Mesh> meshes);
 
-  void draw(Shader shader);
+    void draw(Shader shader);
 };
 #endif

@@ -5,13 +5,10 @@
 
 class Map {
 public:
-  enum TileType{
-
-  }
-  static Model RandomAsModel() {
-
-  }
-
+    enum TileType {
+    }
+    static Model RandomAsModel() {
+    }
 }
 
 #endif

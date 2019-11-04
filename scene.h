@@ -8,54 +8,52 @@
 
 class Scene {
 public:
-  ~Scene() { for (Entity* e : entities) { delete e; } }
+    ~Scene() { for (Entity* e : entities) { delete e; } }
 
-  Entity* selected_entity;
+    Entity* selected_entity;
 
-  vector<Entity*>            entities;
-  vector<PointLight>         point_lights;
-  vector<DirectionalLight>   directional_lights;
+    std::vector<Entity*>            entities;
+    std::vector<PointLight>         point_lights;
+    std::vector<DirectionalLight>   directional_lights;
 
-  void update() {
+    void update() {
+    }
 
-  }
+    void draw(Shader shader) {
+        for (int i = 0; i < directional_lights.size(); i++) {
+            shader.setDirectionalLight(i, directional_lights[i]);
+        }
 
-  void draw(Shader shader) {
-      for (int i = 0; i < directional_lights.size(); i++) {
-        shader.setDirectionalLight(i, directional_lights[i]);
-      }
+        for (int i = 0; i < point_lights.size(); i++) {
+            shader.setPointLight(i, point_lights[i]);
+        }
 
-      for (int i = 0; i < point_lights.size(); i++) {
-          shader.setPointLight(i, point_lights[i]);
-      }
+        for (Entity* e : entities) {
+            e->draw(shader);
+        }
+    }
 
-      for (Entity* e : entities) {
-          e->draw(shader);
-      }
-  }
+    bool select_by_ray_cast(glm::vec3 p, glm::vec3 dir) {
+        float min_t = INFINITY;
 
-  bool select_by_ray_cast(glm::vec3 p, glm::vec3 dir) {
-      float min_t = INFINITY;
+        // Hurts my soul, looking forward to segfault
+        selected_entity = NULL;
 
-      // Hurts my soul, looking forward to segfault
-      selected_entity = NULL;
+        for (int i = 0; i < entities.size(); i++) {
+            entities[i]->is_selected = false;
+            float t = entities[i]->bounding_sphere.ray_test(p, dir);
+            if (t < min_t) {
+                selected_entity = entities[i];
+            }
+        }
 
-      for (int i = 0; i < entities.size(); i++) {
-          entities[i]->is_selected = false;
-          float t = entities[i]->bounding_sphere.ray_test(p, dir);
-          if (t < min_t) {
-            selected_entity = entities[i];
-          }
-      }
+        if (selected_entity) {
+            selected_entity->is_selected = true;
+            return true;
+        }
 
-      if (selected_entity) {
-          selected_entity->is_selected = true;
-          return true;
-      }
-
-      return false;
-  }
-
+        return false;
+    }
 };
 
 #endif
