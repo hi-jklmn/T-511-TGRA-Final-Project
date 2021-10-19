@@ -1,0 +1,124 @@
+% Created 2019-11-04 Mon 04:31
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\usepackage{minted}
+\author{Jökull Máni Reynisson}
+\date{\texttt{(jokull16@ru.is)}}
+\title{TGRA Programming Assignment 5 Project Report}
+\hypersetup{
+ pdfauthor={Jökull Máni Reynisson},
+ pdftitle={TGRA Programming Assignment 5 Project Report},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 26.3 (Org mode 9.2.6)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+\label{sec:org2bdd7a7}
+
+\begin{enumerate}
+\item Instructions
+\label{sec:orga072eb3}
+
+Run the executable in the \texttt{Release} folder, it should work out of the box. Otherwise, the project can be compiled from the Visual Studio solution if you have the proper libraries installed (glm, glew, glfw3, assimp). They can be easily acquired using the \texttt{vcpkg} application distributed by Microsoft found on Github.
+
+\item Control Schema
+\label{sec:org2a30d03}
+\begin{enumerate}
+\item Movement
+\label{sec:org8b9665f}
+\begin{itemize}
+\item WASD
+\end{itemize}
+\item Camera
+\label{sec:org27b3a11}
+\begin{itemize}
+\item HJKL
+\item X (to switch from play camera to debug camera and back)
+\end{itemize}
+\item Selection
+\label{sec:orgc2f7c95}
+\begin{itemize}
+\item Use the mouse to click objects in the scene and drag them around
+\end{itemize}
+\end{enumerate}
+
+\item Goal
+\label{sec:org56f14fe}
+
+This project is an exercise in efficient implementation of a very simple cross platform general purpose rendering API that would be appropriate in the context possibly of making a game or an otherwise interactive simulation. The goal was to be able to render a large number of textured and possibly high poly meshes efficiently.
+This results in a number of important challenges that must be overcome on the path to rendering a large number of meshes, some being a little surprising and the solutions occasionally being pretty interesting.
+My choice of language to implement the project in is C++ as it is familiar, efficient, is easy to set up an OpenGL development environment in with \texttt{glfw3} and has a wealth of reference material regarding implementations of larger systems. A key point is also the ability to have very granular control over how memory is utilized.
+I did not manage to get everything done the way I wanted it to be done and some systems had to be rewritten from scratch, resulting in a much longer and more tedious development process than I was anticipating. This resulted in the gameplay component of the project to be very underwhelming.
+
+There is quite a bit going on, but the code should be kind of readable. I will explain some of the highlights and interesting tidbits in this report as well as touch on the architectural decisions in broad strokes.
+
+A lot of code is based on examples from \url{https://learnopengl.com} which I used as a jumping off point as it is an incredible resource to get a good understanding of
+\end{enumerate}
+
+\section{Broad Strokes}
+\label{sec:org50533a5}
+
+The system is implemented such that any interactable object is an \texttt{Entity}, consisting of the usual position, rotation and scale parameters as well as a pointer to the model that is assigned to it. There is also a bounding sphere for ray casting tests that is used for the novelty of dragging entities around the screen. Entities needed to be much more performant than any other aspect as they represent the majority of visible objects on screen.
+
+I adopted the convention from learnopengl.com to organize models as dynamic arrays of \texttt{Mesh} objects which represent the actual geometry stored in the OpenGL buffers. This allows for a very easy translation from the way that Assimp loads .obj files. Models needed a local transformation system so they have a \texttt{transform} matrix that is used to make sure that the 3D models I downloaded primarily from free3d.com would not appear strangely rotated or scaled. Assimp also can calculate the tangents and bitangents for each vertex so normal maps was an exciting prospect and this was implemented as well based on the calculations the learnopengl.com page regarding the subject.
+
+\section{Materials, Textures and Lighting}
+\label{sec:org35c074b}
+
+Materials used to have a lot more parameters, but I ended up narrowing them down to \texttt{diffuse}, \texttt{specular} and \texttt{shininess} as it ended up giving a much more reasonable picture if the ambient factor was controlled in the lights as a simple multiplication of the diffuse color. Textures will overtake the \texttt{diffuse} and \texttt{specular} components in the case of diffuse textures and specular textures in the shader. This did remove the possibility of recoloring the texture by using the material, but I didn't really miss it since it's simple to edit in Photoshop or Gimp and provides a less cluttered interface.
+
+In the same vein, I was very delighted to find a nice light falloff function from an Unreal Engine paper that I credit in the fragment shader that is based only on a radius parameter and distance from the fragment. It looks pretty good and made lighting a much simpler task compared to the system I was using before which depended on a constant, linear and quadratic parameter.
+
+The lighting model itself only implements simple directional lights and point lights using lambert and phong calculations but supports an indefinite number of them, only bounded by a \texttt{\#define} in the shader. A very involved lighting display was planned but ended up being cut for time. I ended up using Phong lighting as opposed to the Blinn-Phong modification since the extra calculation of the reflected light vector wasn't really impacting performance very much and I thought that it looked nicer in some situations.
+
+The main takeaway was that I managed to get normal maps working and looking alright. The moving lights near the start moving along bezier curves provide a nice lighting component that shows off the normal maps and the relatively high-poly Hand mesh that represents the "player". I ended up hardcoding the locations and names of each texture type that I ended up supporting in the shader since I gained a few milliseconds per frame by relying on strings as few times as possible. Since most meshes in the maze have textures, this ended up providing a lot of additional performance.
+
+\section{Key Optimizations}
+\label{sec:org97469ad}
+
+Pretty hilariously, most of optimization was actually minimizing the use of strings and in particular string concatenation. When setting the material parameters, which are implemented in the shaders as a struct, the original implementation relied on naive string concatenation with the name of the struct. This was taking up 36\% of computation time every frame. This unexpected inefficiency had a surprising solution where I could reduce the amount of computation required to concatenate the strings by relying on the \texttt{+=} operator instead since the compiler can make a lot more assumptions in that case. This lead me to some research that this is a known problem in video game engine programming and is often solved by having a dedicated \texttt{StringBuilder} class which provides a very efficient way to work with strings by preallocating the buffers as well as using other optimizations. The current implementation takes up around 8\% of time per frame just to concatenate the strings required to set the material parameters in the shader. This could have been optimized further by never using strings at all and just relying on the handles that the shader program gives, but would've required more boilerplate code and I wanted this to be more flexible as this was not the final intended material implementation.
+
+However, as every frame each Entity must have a correctly calculated model matrix each frame, I decided to have each entity recalculate its model matrix only when position, scale or rotation was changed. This would result in a lot of extra calculations for dynamic objects but since the majority of entities were static this reduced the number of calculations drastically. Also merely passing in the string "uModelMatrix" to the shader was using a large number of CPU cycles per frame, so I ended up caching the handle for the matrix in the shader allowing me to push through a lot more meshes per frame. I reached around 40,000 meshes rendering each frame with reasonable FPS on my main PC, which is not incredibly impressive but this number was gained through incremental performance optimizations and it was a lot of fun learning about the issues of cache misses, cache locality and the inefficiencies associated with communication to the shader.
+
+\section{Extra stuff}
+\label{sec:org48844d7}
+
+\begin{enumerate}
+\item Bezier Curves
+\label{sec:org97f098e}
+
+I implemented a version of bezier curves found in \texttt{animation.h} that relies on a recursive definition that is reasonably performant, but has the entertaining feature of being type agnostic as long as the \texttt{glm} implementation of lerp, \texttt{glm::mix} can linearly interpolate it. It supports any number of control points as well. I use it to animate the two lights near the start of the maze as well as their color.
+
+\item Picking Entities in the Scene with Ray-Casting
+\label{sec:orga9a87f8}
+
+The original idea was to implement an engine first and then develop gameplay. Unsurprisingly, this was pretty over-ambitious but I don't regret a lot of the failed attempts early on as though I am not really happy with the final result, I learned a lot about graphics programming in practice. However, this is why before I even had lighting properly implemented this feature was already in the program. This took a bit of finagling as making the screen-space to camera-space to world-coordinate transformation was an almost success, but there was some slight discrepancy from the cursor position to the actual direction vector I rendered using an early version of the line rendering I implemented in the \texttt{Debug} class. This was probably due to forgetting to account for the Perspective transformation. However, after feeling reasonably confident that I understood how the transformation worked I found that \texttt{glm} had an \texttt{unProject} function that made this calculation perfectly. This was great as there is a wealth of interactive possibility using this feature. I ended up keeping it simple and having the object vary along the plane formed by the object's position and the direction vector (calculated as the vector from the camera to the cursor's world position) as the normal.
+
+\item Fresnel Selection Effect
+\label{sec:org30129d4}
+
+This was really cool with the normal maps, but was implemented pretty early on as I wanted some visual effect to indicate selection. I researched some shader effects and the fresnel effect as implemented for usually transparent glass-type objects seemed a great fit. I ended up basing my implementation on Kyle Halladay's explanation of the effect on his blog article "The Basics of Fresnel Shading", picking some reasonable values to calculate \texttt{R} and though the linear interpolation between the fresnel color (yellow) and the Fragment color looks incorrect I thought the effect came out really nicely.
+
+\item Skybox
+\label{sec:orgdbf3d1d}
+
+There's a lot that can be done with the skybox, but I just wanted to have some way to orient oneself easily and having a clear horizon seemed like a good idea. So the skybox is implemented as a sphere rendered without depth testing around the camera at all times with the fragment color varying based on its height, being mixed from two colors.
+\end{enumerate}
+\end{document}
